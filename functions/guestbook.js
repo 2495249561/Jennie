@@ -1,9 +1,15 @@
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
     headers: {
       "content-type": "application/json;charset=UTF-8",
-      "Access-Control-Allow-Origin": "*",
+      ...corsHeaders,
     },
   });
 }
@@ -36,6 +42,10 @@ async function saveEntries(kv, entries) {
 export async function onRequest(context) {
   const { request, env } = context;
   const kv = env.GUESTBOOK;
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   if (!kv) {
     return jsonResponse({ error: "GUESTBOOK KV 未配置。" }, 500);
