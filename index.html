@@ -271,6 +271,88 @@
             font-size: 0.75rem;
             color: var(--text-muted);
         }
+
+        .guestbook {
+            margin-top: 2.5rem;
+            text-align: left;
+        }
+
+        .guestbook-form {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .guestbook-form label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .guestbook-form input,
+        .guestbook-form textarea {
+            width: 100%;
+            padding: 0.75rem 0.9rem;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            font-family: 'Inter', -apple-system, sans-serif;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+
+        .guestbook-form textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .guestbook-form button {
+            justify-self: start;
+        }
+
+        .guestbook-status {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            min-height: 1.2rem;
+        }
+
+        .guestbook-entries {
+            list-style: none;
+            display: grid;
+            gap: 1rem;
+            padding: 0;
+            margin: 0;
+        }
+
+        .guestbook-entry {
+            padding: 1rem 1.25rem;
+            background: #f9f9f9;
+            border-radius: 16px;
+            border: 1px solid #f0e9ec;
+        }
+
+        .guestbook-entry header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .guestbook-entry strong {
+            font-size: 0.95rem;
+            color: var(--primary);
+        }
+
+        .guestbook-entry time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .guestbook-entry p {
+            font-size: 0.9rem;
+            color: #374151;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 
@@ -325,6 +407,25 @@
                 <a href="https://www.instagram.com/jennierubyjane/" target="_blank"
                     class="btn btn-secondary">Instagram</a>
             </div>
+
+            <section class="guestbook">
+                <h2 class="section-title">粉丝留言板</h2>
+                <form class="guestbook-form" id="guestbook-form">
+                    <div>
+                        <label for="guest-name">你的名字</label>
+                        <input id="guest-name" name="name" type="text" maxlength="30" placeholder="比如：Jisoo"
+                            required>
+                    </div>
+                    <div>
+                        <label for="guest-message">想对 Jennie 说的话</label>
+                        <textarea id="guest-message" name="message" maxlength="200" placeholder="留下你的祝福吧～"
+                            required></textarea>
+                    </div>
+                    <button class="btn btn-primary" type="submit">提交留言</button>
+                    <div class="guestbook-status" id="guestbook-status"></div>
+                </form>
+                <ul class="guestbook-entries" id="guestbook-entries"></ul>
+            </section>
         </div>
     </div>
 
@@ -361,6 +462,89 @@
             player.src = '';
             modal.style.display = 'none';
         }
+
+        // 3. 留言板逻辑
+        const guestbookEntries = document.getElementById('guestbook-entries');
+        const guestbookForm = document.getElementById('guestbook-form');
+        const guestbookStatus = document.getElementById('guestbook-status');
+
+        const formatDate = (value) => {
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return date.toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
+        };
+
+        const renderEntries = (entries) => {
+            guestbookEntries.innerHTML = '';
+            if (!entries.length) {
+                const emptyItem = document.createElement('li');
+                emptyItem.className = 'guestbook-entry';
+                emptyItem.innerHTML = '<p>还没有留言，快来写下第一句祝福吧！</p>';
+                guestbookEntries.appendChild(emptyItem);
+                return;
+            }
+            entries.forEach((entry) => {
+                const item = document.createElement('li');
+                item.className = 'guestbook-entry';
+                item.innerHTML = `
+                    <header>
+                        <strong>${entry.name}</strong>
+                        <time>${formatDate(entry.createdAt)}</time>
+                    </header>
+                    <p>${entry.message}</p>
+                `;
+                guestbookEntries.appendChild(item);
+            });
+        };
+
+        const fetchEntries = async () => {
+            try {
+                const response = await fetch('/guestbook');
+                if (!response.ok) throw new Error('加载失败');
+                const data = await response.json();
+                renderEntries(data.entries || []);
+            } catch (error) {
+                guestbookStatus.textContent = '留言加载失败，请稍后再试。';
+            }
+        };
+
+        guestbookForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            guestbookStatus.textContent = '';
+            const name = document.getElementById('guest-name').value.trim();
+            const message = document.getElementById('guest-message').value.trim();
+            if (!name || !message) {
+                guestbookStatus.textContent = '请填写名字和留言内容。';
+                return;
+            }
+
+            const submitButton = guestbookForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = '提交中...';
+            try {
+                const response = await fetch('/guestbook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, message }),
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '提交失败');
+                }
+                const data = await response.json();
+                const entries = data.entries || [];
+                renderEntries(entries);
+                guestbookForm.reset();
+                guestbookStatus.textContent = '留言已提交，感谢你的祝福！';
+            } catch (error) {
+                guestbookStatus.textContent = error.message || '提交失败，请稍后再试。';
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = '提交留言';
+            }
+        });
+
+        fetchEntries();
     </script>
 </body>
 
