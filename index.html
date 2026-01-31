@@ -271,6 +271,69 @@
             font-size: 0.75rem;
             color: var(--text-muted);
         }
+
+        .guestbook {
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .guestbook-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .guestbook-form input,
+        .guestbook-form textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            font-family: inherit;
+            font-size: 0.95rem;
+            background: #fff;
+        }
+
+        .guestbook-form textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .guestbook-form button {
+            align-self: flex-start;
+        }
+
+        .guestbook-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .guestbook-entry {
+            background: #f9f9f9;
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            border-left: 4px solid var(--accent);
+        }
+
+        .guestbook-entry h3 {
+            margin: 0 0 0.35rem;
+            font-size: 0.95rem;
+            color: var(--primary);
+        }
+
+        .guestbook-entry p {
+            margin: 0 0 0.5rem;
+            color: var(--primary);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .guestbook-entry span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 
@@ -325,6 +388,18 @@
                 <a href="https://www.instagram.com/jennierubyjane/" target="_blank"
                     class="btn btn-secondary">Instagram</a>
             </div>
+
+            <section class="guestbook">
+                <h2 class="section-title">粉丝留言板</h2>
+                <form class="guestbook-form" id="guestbook-form">
+                    <input type="text" name="name" placeholder="你的名字（可选）" maxlength="40">
+                    <textarea name="message" placeholder="写下对 Jennie 的祝福" maxlength="200" required></textarea>
+                    <button class="btn btn-primary" type="submit">送出祝福</button>
+                </form>
+                <div class="guestbook-list" id="guestbook-list">
+                    <p id="guestbook-empty" style="color: var(--text-muted);">还没有留言，快来抢沙发吧！</p>
+                </div>
+            </section>
         </div>
     </div>
 
@@ -361,6 +436,65 @@
             player.src = '';
             modal.style.display = 'none';
         }
+
+        // 3. 留言板逻辑
+        const guestbookForm = document.getElementById('guestbook-form');
+        const guestbookList = document.getElementById('guestbook-list');
+        const guestbookEmpty = document.getElementById('guestbook-empty');
+
+        function renderEntries(entries) {
+            guestbookList.innerHTML = '';
+            if (!entries || entries.length === 0) {
+                guestbookList.appendChild(guestbookEmpty);
+                return;
+            }
+            entries.forEach((entry) => {
+                const card = document.createElement('div');
+                card.className = 'guestbook-entry';
+                const name = entry.name ? entry.name : '匿名粉丝';
+                card.innerHTML = `
+                    <h3>${name}</h3>
+                    <p>${entry.message}</p>
+                    <span>${entry.createdAt}</span>
+                `;
+                guestbookList.appendChild(card);
+            });
+        }
+
+        async function loadGuestbook() {
+            try {
+                const response = await fetch('/guestbook');
+                if (!response.ok) throw new Error('Failed');
+                const data = await response.json();
+                renderEntries(data.entries);
+            } catch (e) {
+                renderEntries([]);
+                guestbookEmpty.textContent = '暂时无法加载留言板，请稍后再试。';
+            }
+        }
+
+        guestbookForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(guestbookForm);
+            const payload = {
+                name: formData.get('name'),
+                message: formData.get('message')
+            };
+            try {
+                const response = await fetch('/guestbook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Failed');
+                guestbookForm.reset();
+                loadGuestbook();
+            } catch (e) {
+                alert('留言提交失败，请稍后再试。');
+            }
+        });
+
+        loadGuestbook();
     </script>
 </body>
 
